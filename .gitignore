@@ -1,0 +1,20 @@
+/venv/
+/.venv/
+__pycache__/
+*.py[cod]
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.wav
+/frame_*.jpg
+/cropped_face.jpg
+/real img.jpg
+/cropped_faces/
+/uploads/*
+/static/extracted_frames/*
+/static/cropped_faces/*
+/static/suspicious_frames/*
+.env
+/static/frames/
+/static/suspicious/

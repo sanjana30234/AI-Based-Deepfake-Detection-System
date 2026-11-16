@@ -1,0 +1,753 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deepfake Detection | Results</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #ffffff;
+            color: #111111;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        header {
+            width: 100%;
+            padding: 22px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            border-bottom: 1px solid #e5e5e5;
+            background: #ffffff;
+        }
+
+        header h1 {
+            font-size: 27px;
+            font-weight: 600;
+        }
+
+        header h1 span {
+            color: #18b84a;
+        }
+
+        .header-link {
+            text-decoration: none;
+            color: #ffffff;
+            background: #18b84a;
+            padding: 10px 17px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .header-link:hover {
+            background: #12963b;
+        }
+
+        .container {
+            width: 92%;
+            max-width: 1100px;
+            margin: 35px auto;
+        }
+
+        .page-heading {
+            margin-bottom: 25px;
+        }
+
+        .page-heading h2 {
+            font-size: 30px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .page-heading p {
+            color: #666666;
+            font-size: 14px;
+        }
+
+        .panel,
+        .result-card {
+            background: #ffffff;
+            border: 1px solid #dddddd;
+            border-radius: 8px;
+            padding: 23px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 9px rgba(0, 0, 0, 0.07);
+        }
+
+        .result-card {
+            text-align: center;
+            padding: 30px 20px;
+        }
+
+        .result-card h3 {
+            font-size: 19px;
+            font-weight: 500;
+            margin-bottom: 18px;
+        }
+
+        .result {
+            display: inline-block;
+            padding: 12px 35px;
+            border-radius: 5px;
+            font-size: 27px;
+            font-weight: bold;
+        }
+
+        .result-real {
+            color: #138a38;
+            background: #e9f9ee;
+            border: 1px solid #a8dfb8;
+        }
+
+        .result-fake {
+            color: #d62828;
+            background: #fff0f0;
+            border: 1px solid #f0aaaa;
+        }
+
+        .score {
+            margin-top: 15px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .notice {
+            color: #666666;
+            font-size: 13px;
+            line-height: 1.6;
+            margin-top: 9px;
+        }
+
+        .section-title {
+            font-size: 21px;
+            font-weight: 500;
+            margin-bottom: 17px;
+        }
+
+        .video-preview {
+            max-width: 700px;
+            margin: auto;
+            background: #000000;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        .video-preview video {
+            display: block;
+            width: 100%;
+        }
+
+        .image-preview {
+            text-align: center;
+        }
+
+        .image-preview img {
+            max-width: 100%;
+            max-height: 460px;
+            object-fit: contain;
+            border: 1px solid #dddddd;
+            border-radius: 5px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 14px;
+        }
+
+        .stat {
+            padding: 18px;
+            background: #f8f8f8;
+            border: 1px solid #e1e1e1;
+            border-radius: 7px;
+        }
+
+        .stat p {
+            color: #666666;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .stat h3 {
+            color: #138a38;
+            font-size: 26px;
+        }
+
+        .frame-row {
+            display: flex;
+            gap: 14px;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+
+        .frame-card {
+            flex: 0 0 160px;
+        }
+
+        .frame-card img {
+            width: 160px;
+            height: 115px;
+            object-fit: cover;
+            display: block;
+            border: 1px solid #dddddd;
+            border-radius: 5px;
+            background: #eeeeee;
+        }
+
+        .frame-card p {
+            font-size: 12px;
+            color: #666666;
+            margin-top: 7px;
+            overflow-wrap: anywhere;
+        }
+
+        .suspicious-panel {
+            background: #fffafa;
+            border-color: #f0caca;
+        }
+
+        .suspicious-panel .section-title {
+            color: #c62828;
+        }
+
+        .suspicious-frame {
+            flex: 0 0 190px;
+        }
+
+        .suspicious-frame img {
+            width: 190px;
+            height: 130px;
+            object-fit: cover;
+            border: 2px solid #e57373;
+            border-radius: 5px;
+        }
+
+        .audio-info {
+            background: #f8f8f8;
+            border: 1px solid #dddddd;
+            padding: 18px;
+            border-radius: 7px;
+            line-height: 2;
+            overflow-wrap: anywhere;
+        }
+
+        .audio-info strong {
+            color: #138a38;
+        }
+
+        .empty-message {
+            color: #666666;
+            font-size: 14px;
+        }
+
+        /* Suspicious activity timeline */
+
+        .timeline-panel {
+            border-color: #e0caca;
+        }
+
+        .timeline-description {
+            color: #666666;
+            font-size: 13px;
+            line-height: 1.7;
+            margin-bottom: 22px;
+        }
+
+        .timeline-track-area {
+            padding: 12px 5px 5px;
+        }
+
+        .timeline-track {
+            height: 10px;
+            width: 100%;
+            background: #e5e5e5;
+            border-radius: 20px;
+            position: relative;
+            margin: 27px 0 13px;
+        }
+
+        .timeline-marker {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 17px;
+            height: 17px;
+            background: #d62828;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 0 1px #d62828;
+            z-index: 2;
+        }
+
+        .timeline-labels {
+            display: flex;
+            justify-content: space-between;
+            color: #666666;
+            font-size: 12px;
+        }
+
+        .timeline-legend {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            margin-top: 18px;
+            color: #666666;
+            font-size: 13px;
+        }
+
+        .legend-dot {
+            width: 11px;
+            height: 11px;
+            display: inline-block;
+            border-radius: 50%;
+            background: #d62828;
+        }
+
+        .timeline-list {
+            margin-top: 22px;
+            display: grid;
+            gap: 11px;
+        }
+
+        .timeline-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            padding: 14px;
+            background: #fffafa;
+            border: 1px solid #f0d0d0;
+            border-radius: 6px;
+            flex-wrap: wrap;
+        }
+
+        .timeline-item strong {
+            color: #c62828;
+            font-size: 14px;
+        }
+
+        .timeline-item p {
+            color: #666666;
+            font-size: 13px;
+            margin-top: 5px;
+        }
+
+        .timeline-time {
+            color: #138a38;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .back-area {
+            text-align: center;
+            margin: 35px 0;
+        }
+
+        .back-button {
+            display: inline-block;
+            text-decoration: none;
+            color: #ffffff;
+            background: #18b84a;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .back-button:hover {
+            background: #12963b;
+        }
+
+        footer {
+            text-align: center;
+            padding: 24px;
+            color: #777777;
+            font-size: 13px;
+            line-height: 1.8;
+            border-top: 1px solid #e5e5e5;
+            margin-top: 40px;
+        }
+
+        @media(max-width: 600px) {
+            header {
+                padding: 16px 4%;
+            }
+
+            header h1 {
+                font-size: 21px;
+            }
+
+            .header-link {
+                padding: 9px 11px;
+                font-size: 12px;
+            }
+
+            .container {
+                width: 94%;
+                margin: 25px auto;
+            }
+
+            .panel {
+                padding: 16px;
+            }
+
+            .result-card {
+                padding: 25px 14px;
+            }
+
+            .result {
+                font-size: 24px;
+                padding: 11px 27px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stat {
+                padding: 14px;
+            }
+
+            .stat h3 {
+                font-size: 22px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Deepfake <span>Detection</span></h1>
+
+    <a class="header-link" href="{{ url_for('home') }}">
+        + New Analysis
+    </a>
+</header>
+
+<main class="container">
+
+    <div class="page-heading">
+        <h2>Detection Results</h2>
+        <p>Your uploaded media has been processed by the AI detection system.</p>
+    </div>
+
+    <!-- MAIN RESULT -->
+
+    <section class="result-card">
+        <h3>AI Detection Result</h3>
+
+        <div class="result {% if result == 'REAL' %}result-real{% else %}result-fake{% endif %}">
+            {{ result }}
+        </div>
+
+        <p class="score">
+            Model Score: {{ "%.2f"|format(confidence) }}%
+        </p>
+
+        <p class="notice">
+            This is the model's prediction score, not a guaranteed probability.
+        </p>
+    </section>
+
+    <!-- UPLOADED IMAGE -->
+
+    {% if uploaded_filename and not video_analysis %}
+
+    <section class="panel image-preview">
+        <h2 class="section-title">Uploaded Image</h2>
+
+        <img
+            src="{{ url_for('uploaded_file', filename=uploaded_filename) }}"
+            alt="Uploaded image"
+        >
+    </section>
+
+    {% endif %}
+
+    <!-- VIDEO RESULTS -->
+
+    {% if video_analysis and video_analysis.video_filename %}
+
+    <section class="panel">
+        <h2 class="section-title">Video Preview</h2>
+
+        <div class="video-preview">
+            <video controls>
+                <source
+                    src="{{ url_for('uploaded_file', filename=video_analysis.video_filename) }}"
+                >
+                Your browser does not support video playback.
+            </video>
+        </div>
+    </section>
+
+    <!-- VIDEO SUMMARY -->
+
+    <section class="panel">
+        <h2 class="section-title">Video Analysis Summary</h2>
+
+        <div class="stats-grid">
+
+            <div class="stat">
+                <p>Total Video Frames</p>
+                <h3>{{ video_analysis.total_frames }}</h3>
+            </div>
+
+            <div class="stat">
+                <p>Frames Analyzed</p>
+                <h3>{{ video_analysis.analyzed_frames }}</h3>
+            </div>
+
+            <div class="stat">
+                <p>Faces Analyzed</p>
+                <h3>{{ video_analysis.faces_analyzed }}</h3>
+            </div>
+
+            <div class="stat">
+                <p>REAL Frames</p>
+                <h3>{{ video_analysis.real_frames }}</h3>
+            </div>
+
+            <div class="stat">
+                <p>FAKE Frames</p>
+                <h3>{{ video_analysis.fake_frames }}</h3>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- SUSPICIOUS ACTIVITY TIMELINE -->
+
+    <section class="panel timeline-panel">
+        <h2 class="section-title">Suspicious Activity Timeline</h2>
+
+        <p class="timeline-description">
+            This timeline shows when the visual model flagged sampled video
+            frames for manual review. A flagged frame is not proof of manipulation.
+        </p>
+
+        {% if video_analysis.suspicious_timeline %}
+
+        <div class="timeline-track-area">
+            <div class="timeline-track">
+
+                {% for item in video_analysis.suspicious_timeline %}
+
+                <span
+                    class="timeline-marker"
+                    style="left: {{ ((item.timestamp / video_analysis.video_duration) * 100) if video_analysis.video_duration else 0 }}%;"
+                    title="Frame {{ item.frame_number }} at {{ item.time_label }}"
+                ></span>
+
+                {% endfor %}
+
+            </div>
+
+            <div class="timeline-labels">
+                <span>00:00</span>
+                <span>
+                    {{ "%.2f"|format(video_analysis.video_duration or 0) }} seconds
+                </span>
+            </div>
+
+            <div class="timeline-legend">
+                <span class="legend-dot"></span>
+                <span>Potentially suspicious sampled frame</span>
+            </div>
+        </div>
+
+        <div class="timeline-list">
+
+            {% for item in video_analysis.suspicious_timeline %}
+
+            <div class="timeline-item">
+                <div>
+                    <strong>Potentially suspicious frame</strong>
+                    <p>Frame number: {{ item.frame_number }}</p>
+                    <p>Model score: {{ "%.4f"|format(item.model_score) }}</p>
+                </div>
+
+                <div class="timeline-time">
+                    {{ item.time_label }}
+                </div>
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+        <p class="empty-message">
+            No suspicious frames were flagged in the analyzed samples.
+        </p>
+
+        {% endif %}
+    </section>
+
+    <!-- EXTRACTED FRAMES -->
+
+    <section class="panel">
+        <h2 class="section-title">Extracted Video Frames</h2>
+
+        {% if video_analysis.frame_files %}
+
+        <div class="frame-row">
+
+            {% for frame_file in video_analysis.frame_files %}
+
+            <div class="frame-card">
+                <img
+                    src="{{ url_for('static', filename='frames/' + frame_file) }}"
+                    alt="Extracted frame"
+                    loading="lazy"
+                >
+                <p>{{ frame_file }}</p>
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+        <p class="empty-message">No extracted frames are available.</p>
+
+        {% endif %}
+    </section>
+
+    <!-- CROPPED FACES -->
+
+    <section class="panel">
+        <h2 class="section-title">Detected and Cropped Faces</h2>
+
+        {% if video_analysis.cropped_face_files %}
+
+        <div class="frame-row">
+
+            {% for cropped_file in video_analysis.cropped_face_files %}
+
+            <div class="frame-card">
+                <img
+                    src="{{ url_for('static', filename='cropped_faces/' + cropped_file) }}"
+                    alt="Detected face"
+                    loading="lazy"
+                >
+                <p>{{ cropped_file }}</p>
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+        <p class="empty-message">No cropped faces are available.</p>
+
+        {% endif %}
+    </section>
+
+    <!-- AUDIO ANALYSIS -->
+
+    {% if video_analysis.audio_analysis %}
+
+    <section class="panel">
+        <h2 class="section-title">Audio Anti-Spoofing Analysis</h2>
+
+        <div class="audio-info">
+
+            <p>
+                <strong>Audio Duration:</strong>
+                {{ video_analysis.audio_analysis.audio_duration }} seconds
+            </p>
+
+            <p>
+                <strong>Audio Chunks Analyzed:</strong>
+                {{ video_analysis.audio_analysis.audio_chunks_analyzed }}
+            </p>
+
+            <p>
+                <strong>Mean Bona-Fide Logit:</strong>
+                {{ video_analysis.audio_analysis.mean_bona_fide_logit }}
+            </p>
+
+            <p class="notice">
+                AASIST audio model output. This score is not a calibrated probability.
+            </p>
+
+        </div>
+    </section>
+
+    {% endif %}
+
+    <!-- SUSPICIOUS FRAMES -->
+
+    <section class="panel suspicious-panel">
+        <h2 class="section-title">Potentially Suspicious Frames</h2>
+
+        <p class="notice">
+            Frames classified as FAKE by the visual model.
+            These require manual review and are not proof of manipulation.
+        </p>
+
+        {% if video_analysis.suspicious_files %}
+
+        <div class="frame-row">
+
+            {% for frame_file in video_analysis.suspicious_files %}
+
+            <div class="suspicious-frame">
+                <img
+                    src="{{ url_for('static', filename='suspicious/' + frame_file) }}"
+                    alt="Potentially suspicious frame"
+                    loading="lazy"
+                >
+
+                <p class="notice">{{ frame_file }}</p>
+            </div>
+
+            {% endfor %}
+
+        </div>
+
+        {% else %}
+
+        <p class="empty-message">
+            No potentially suspicious frames were flagged in the analyzed samples.
+        </p>
+
+        {% endif %}
+    </section>
+
+    {% endif %}
+
+    <div class="back-area">
+        <a class="back-button" href="{{ url_for('home') }}">
+            Analyze Another File
+        </a>
+    </div>
+
+</main>
+
+<footer>
+    AI-Based Deepfake Detection System
+    <br>
+    MobileNetV2 + MTCNN + AASIST
+</footer>
+
+</body>
+</html>
