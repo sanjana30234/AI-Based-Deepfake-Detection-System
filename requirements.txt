@@ -59,3 +59,4 @@ urllib3==2.7.0
 Werkzeug==3.1.9
 wheel==0.48.0
 wrapt==2.3.0
+gunicorn==27.0.1
