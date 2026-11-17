@@ -115,6 +115,7 @@ def clear_video_output_folders():
 # VIDEO ANALYSIS - BATCH PREDICTION
 # =========================================================
 
+
 def analyze_video(file_path):
 
     cap = cv2.VideoCapture(file_path)
@@ -176,8 +177,26 @@ def analyze_video(file_path):
             cv2.imwrite(frame_path, frame)
             frame_files.append(frame_filename)
 
-            rgb_frame = cv2.cvtColor(
+            # Original frame dimensions
+            frame_height, frame_width = frame.shape[:2]
+
+            # Resize while preserving aspect ratio
+            scale = min(
+                640 / frame_width,
+                640 / frame_height
+            )
+
+            small_width = max(1, int(frame_width * scale))
+            small_height = max(1, int(frame_height * scale))
+
+            small_frame = cv2.resize(
                 frame,
+                (small_width, small_height)
+            )
+
+            # Detect faces on resized frame
+            rgb_frame = cv2.cvtColor(
+                small_frame,
                 cv2.COLOR_BGR2RGB
             )
 
@@ -186,12 +205,17 @@ def analyze_video(file_path):
             if not faces:
                 continue
 
-            frame_height, frame_width = frame.shape[:2]
-
             for face_index, face in enumerate(faces):
 
                 x, y, w, h = face["box"]
 
+                # Convert coordinates to original frame size
+                x = int(x / scale)
+                y = int(y / scale)
+                w = int(w / scale)
+                h = int(h / scale)
+
+                # Clip coordinates to frame boundaries
                 x = max(0, x)
                 y = max(0, y)
 
@@ -262,6 +286,118 @@ def analyze_video(file_path):
             "frame_files": frame_files,
             "cropped_face_files": cropped_face_files
         }
+
+    # Batch prediction
+    face_array = np.stack(face_batches, axis=0)
+
+    batch_predictions = model.predict(
+        face_array,
+        batch_size=16,
+        verbose=0
+    ).reshape(-1)
+
+    predictions = [
+        float(value) for value in batch_predictions
+    ]
+
+    real_frames = []
+    fake_frames = []
+
+    for prediction, metadata in zip(
+        predictions,
+        face_metadata
+    ):
+
+        frame_number = metadata["frame_number"]
+        frame = metadata["frame"]
+
+        if prediction > 0.5:
+
+            real_frames.append(frame_number)
+
+        else:
+
+            fake_frames.append(frame_number)
+
+            suspicious_filename = f"frame_{frame_number}.jpg"
+
+            suspicious_path = os.path.join(
+                SUSPICIOUS_FOLDER,
+                suspicious_filename
+            )
+
+            if not os.path.exists(suspicious_path):
+
+                cv2.imwrite(
+                    suspicious_path,
+                    frame
+                )
+
+                suspicious_frame_files.append(
+                    suspicious_filename
+                )
+
+            suspicious_by_frame.setdefault(
+                frame_number,
+                []
+            ).append(prediction)
+
+    faces_analyzed = len(predictions)
+
+    average_prediction = float(np.mean(predictions))
+
+    if average_prediction > 0.5:
+
+        final_result = "REAL"
+        final_confidence = average_prediction * 100
+
+    else:
+
+        final_result = "FAKE"
+        final_confidence = (1 - average_prediction) * 100
+
+    # Suspicious timeline
+    suspicious_timeline = []
+
+    for frame_number in sorted(suspicious_by_frame):
+
+        timestamp = frame_number / fps
+
+        minutes = int(timestamp // 60)
+        seconds = int(timestamp % 60)
+
+        suspicious_timeline.append({
+
+            "frame_number": frame_number,
+            "timestamp": round(timestamp, 2),
+            "time_label": f"{minutes:02d}:{seconds:02d}",
+            "filename": f"frame_{frame_number}.jpg",
+
+            "model_score": float(
+                np.mean(suspicious_by_frame[frame_number])
+            )
+
+        })
+
+    return {
+
+        "result": final_result,
+        "confidence": float(final_confidence),
+        "total_frames": total_frames,
+        "analyzed_frames": faces_analyzed,
+        "real_frames": len(real_frames),
+        "fake_frames": len(fake_frames),
+        "faces_analyzed": faces_analyzed,
+        "fps": fps,
+        "video_duration": round(video_duration, 2),
+        "suspicious_frames": sorted(set(fake_frames)),
+        "suspicious_files": suspicious_frame_files,
+        "suspicious_timeline": suspicious_timeline,
+        "frame_files": frame_files,
+        "cropped_face_files": cropped_face_files
+
+    }
+
 
     # BATCH PREDICTION
     face_array = np.stack(face_batches, axis=0)
