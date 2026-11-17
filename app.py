@@ -1,16 +1,9 @@
 
-from flask import (
-    Flask,
-    render_template,
-    request,
-    send_from_directory
-)
-
+from flask import Flask, render_template, request, send_from_directory
 from werkzeug.utils import secure_filename
 
 from tf_keras.models import load_model
 from tf_keras.preprocessing import image
-
 from audio_utils import analyze_video_audio
 
 import numpy as np
@@ -26,7 +19,6 @@ from mtcnn import MTCNN
 # =========================================================
 
 app = Flask(__name__)
-
 app.config["MAX_CONTENT_LENGTH"] = 500 * 1024 * 1024
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -59,10 +51,7 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 print("Loading deepfake detection model...")
 
-model = load_model(
-    MODEL_PATH,
-    compile=False
-)
+model = load_model(MODEL_PATH, compile=False)
 
 print("Deepfake detection model loaded successfully!")
 
@@ -80,23 +69,12 @@ detector = MTCNN()
 
 def analyze_image(file_path):
 
-    img = image.load_img(
-        file_path,
-        target_size=(224, 224)
-    )
-
+    img = image.load_img(file_path, target_size=(224, 224))
     img_array = image.img_to_array(img)
-
-    img_array = np.expand_dims(
-        img_array,
-        axis=0
-    )
+    img_array = np.expand_dims(img_array, axis=0)
 
     prediction = float(
-        model.predict(
-            img_array,
-            verbose=0
-        )[0][0]
+        model.predict(img_array, verbose=0)[0][0]
     )
 
     if prediction > 0.5:
@@ -122,13 +100,9 @@ def clear_video_output_folders():
     ]
 
     for folder in folders:
-
         for filename in os.listdir(folder):
 
-            old_file = os.path.join(
-                folder,
-                filename
-            )
+            old_file = os.path.join(folder, filename)
 
             if os.path.isfile(old_file):
                 try:
@@ -138,7 +112,7 @@ def clear_video_output_folders():
 
 
 # =========================================================
-# VIDEO ANALYSIS
+# VIDEO ANALYSIS - BATCH PREDICTION
 # =========================================================
 
 def analyze_video(file_path):
@@ -148,13 +122,8 @@ def analyze_video(file_path):
     if not cap.isOpened():
         return None
 
-    total_frames = int(
-        cap.get(cv2.CAP_PROP_FRAME_COUNT)
-    )
-
-    fps = float(
-        cap.get(cv2.CAP_PROP_FPS)
-    )
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    fps = float(cap.get(cv2.CAP_PROP_FPS))
 
     if total_frames <= 0:
         cap.release()
@@ -167,7 +136,6 @@ def analyze_video(file_path):
 
     clear_video_output_folders()
 
-    # Analyze up to 30 frames
     number_of_samples = min(30, total_frames)
 
     frame_indices = np.linspace(
@@ -177,22 +145,13 @@ def analyze_video(file_path):
         dtype=int
     )
 
-    predictions = []
+    face_batches = []
+    face_metadata = []
 
-    real_frames = []
-    fake_frames = []
-
-    faces_analyzed = 0
-
-    suspicious_frame_files = []
     frame_files = []
     cropped_face_files = []
-
+    suspicious_frame_files = []
     suspicious_by_frame = {}
-
-    # -----------------------------------------------------
-    # PROCESS VIDEO FRAMES
-    # -----------------------------------------------------
 
     try:
 
@@ -200,19 +159,13 @@ def analyze_video(file_path):
 
             frame_number = int(frame_number)
 
-            cap.set(
-                cv2.CAP_PROP_POS_FRAMES,
-                frame_number
-            )
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_number)
 
             success, frame = cap.read()
 
             if not success:
                 continue
 
-            timestamp = frame_number / fps
-
-            # Save original frame
             frame_filename = f"frame_{frame_number}.jpg"
 
             frame_path = os.path.join(
@@ -220,34 +173,24 @@ def analyze_video(file_path):
                 frame_filename
             )
 
-            cv2.imwrite(
-                frame_path,
-                frame
-            )
-
+            cv2.imwrite(frame_path, frame)
             frame_files.append(frame_filename)
 
-            # Convert to RGB
             rgb_frame = cv2.cvtColor(
                 frame,
                 cv2.COLOR_BGR2RGB
             )
 
-            # Detect faces
             faces = detector.detect_faces(rgb_frame)
 
-            if len(faces) == 0:
+            if not faces:
                 continue
 
-            # -------------------------------------------------
-            # ANALYZE EACH FACE
-            # -------------------------------------------------
+            frame_height, frame_width = frame.shape[:2]
 
             for face_index, face in enumerate(faces):
 
                 x, y, w, h = face["box"]
-
-                frame_height, frame_width = frame.shape[:2]
 
                 x = max(0, x)
                 y = max(0, y)
@@ -258,15 +201,11 @@ def analyze_video(file_path):
                 if w <= 0 or h <= 0:
                     continue
 
-                face_crop = frame[
-                    y:y + h,
-                    x:x + w
-                ]
+                face_crop = frame[y:y + h, x:x + w]
 
                 if face_crop.size == 0:
                     continue
 
-                # Save cropped face
                 cropped_filename = (
                     f"crop_{frame_number}_face_{face_index}.jpg"
                 )
@@ -276,14 +215,10 @@ def analyze_video(file_path):
                     cropped_filename
                 )
 
-                cv2.imwrite(
-                    cropped_path,
-                    face_crop
-                )
+                cv2.imwrite(cropped_path, face_crop)
 
                 cropped_face_files.append(cropped_filename)
 
-                # Resize face
                 face_crop = cv2.resize(
                     face_crop,
                     (224, 224)
@@ -294,67 +229,22 @@ def analyze_video(file_path):
                     cv2.COLOR_BGR2RGB
                 )
 
-                img_array = image.img_to_array(face_crop)
+                face_array = image.img_to_array(
+                    face_crop
+                ).astype(np.float32)
 
-                img_array = np.expand_dims(
-                    img_array,
-                    axis=0
-                )
+                face_batches.append(face_array)
 
-                # Predict
-                prediction = float(
-                    model.predict(
-                        img_array,
-                        verbose=0
-                    )[0][0]
-                )
-
-                predictions.append(prediction)
-
-                faces_analyzed += 1
-
-                # Classify
-                if prediction > 0.5:
-
-                    real_frames.append(frame_number)
-
-                else:
-
-                    fake_frames.append(frame_number)
-
-                    suspicious_filename = (
-                        f"frame_{frame_number}.jpg"
-                    )
-
-                    suspicious_path = os.path.join(
-                        SUSPICIOUS_FOLDER,
-                        suspicious_filename
-                    )
-
-                    if not os.path.exists(suspicious_path):
-
-                        cv2.imwrite(
-                            suspicious_path,
-                            frame
-                        )
-
-                        suspicious_frame_files.append(
-                            suspicious_filename
-                        )
-
-                    suspicious_by_frame.setdefault(
-                        frame_number,
-                        []
-                    ).append(prediction)
+                face_metadata.append({
+                    "frame_number": frame_number,
+                    "frame": frame
+                })
 
     finally:
         cap.release()
 
-    # -----------------------------------------------------
-    # NO FACES FOUND
-    # -----------------------------------------------------
-
-    if len(predictions) == 0:
+    # No faces detected
+    if not face_batches:
 
         return {
             "result": "UNKNOWN",
@@ -373,14 +263,64 @@ def analyze_video(file_path):
             "cropped_face_files": cropped_face_files
         }
 
-    # -----------------------------------------------------
-    # FINAL VIDEO RESULT
-    # -----------------------------------------------------
+    # BATCH PREDICTION
+    face_array = np.stack(face_batches, axis=0)
+
+    batch_predictions = model.predict(
+        face_array,
+        batch_size=16,
+        verbose=0
+    ).reshape(-1)
+
+    predictions = [
+        float(value) for value in batch_predictions
+    ]
+
+    real_frames = []
+    fake_frames = []
+
+    for prediction, metadata in zip(
+        predictions,
+        face_metadata
+    ):
+
+        frame_number = metadata["frame_number"]
+        frame = metadata["frame"]
+
+        if prediction > 0.5:
+
+            real_frames.append(frame_number)
+
+        else:
+
+            fake_frames.append(frame_number)
+
+            suspicious_filename = f"frame_{frame_number}.jpg"
+
+            suspicious_path = os.path.join(
+                SUSPICIOUS_FOLDER,
+                suspicious_filename
+            )
+
+            if not os.path.exists(suspicious_path):
+
+                cv2.imwrite(
+                    suspicious_path,
+                    frame
+                )
+
+                suspicious_frame_files.append(
+                    suspicious_filename
+                )
+
+            suspicious_by_frame.setdefault(
+                frame_number,
+                []
+            ).append(prediction)
+
+    faces_analyzed = len(predictions)
 
     average_prediction = float(np.mean(predictions))
-
-    real_count = len(real_frames)
-    fake_count = len(fake_frames)
 
     if average_prediction > 0.5:
 
@@ -392,10 +332,7 @@ def analyze_video(file_path):
         final_result = "FAKE"
         final_confidence = (1 - average_prediction) * 100
 
-    # -----------------------------------------------------
-    # BUILD SUSPICIOUS TIMELINE
-    # -----------------------------------------------------
-
+    # SUSPICIOUS TIMELINE
     suspicious_timeline = []
 
     for frame_number in sorted(suspicious_by_frame):
@@ -405,14 +342,6 @@ def analyze_video(file_path):
         minutes = int(timestamp // 60)
         seconds = int(timestamp % 60)
 
-        frame_filename = f"frame_{frame_number}.jpg"
-
-        frame_scores = suspicious_by_frame[frame_number]
-
-        average_frame_score = float(
-            np.mean(frame_scores)
-        )
-
         suspicious_timeline.append({
 
             "frame_number": frame_number,
@@ -421,15 +350,13 @@ def analyze_video(file_path):
 
             "time_label": f"{minutes:02d}:{seconds:02d}",
 
-            "filename": frame_filename,
+            "filename": f"frame_{frame_number}.jpg",
 
-            "model_score": average_frame_score
+            "model_score": float(
+                np.mean(suspicious_by_frame[frame_number])
+            )
 
         })
-
-    # -----------------------------------------------------
-    # RETURN VIDEO ANALYSIS
-    # -----------------------------------------------------
 
     return {
 
@@ -439,11 +366,11 @@ def analyze_video(file_path):
 
         "total_frames": total_frames,
 
-        "analyzed_frames": len(predictions),
+        "analyzed_frames": faces_analyzed,
 
-        "real_frames": real_count,
+        "real_frames": len(real_frames),
 
-        "fake_frames": fake_count,
+        "fake_frames": len(fake_frames),
 
         "faces_analyzed": faces_analyzed,
 
@@ -491,10 +418,6 @@ def home():
             error=None
         )
 
-    # -----------------------------------------------------
-    # CHECK UPLOADED FILE
-    # -----------------------------------------------------
-
     if "file" not in request.files:
 
         return render_template(
@@ -522,7 +445,6 @@ def home():
             error="Invalid filename."
         )
 
-    # Unique filename
     saved_filename = (
         f"{uuid.uuid4().hex}_{safe_filename}"
     )
@@ -538,20 +460,12 @@ def home():
 
     result = None
     confidence = None
-
     video_analysis = None
     uploaded_filename = None
 
-    # -----------------------------------------------------
-    # ANALYSIS
-    # -----------------------------------------------------
-
     try:
 
-        # ================================================
         # IMAGE ANALYSIS
-        # ================================================
-
         if filename.endswith(
             (".jpg", ".jpeg", ".png", ".webp")
         ):
@@ -564,10 +478,7 @@ def home():
             print("RESULT:", result)
             print("CONFIDENCE:", confidence)
 
-        # ================================================
         # VIDEO ANALYSIS
-        # ================================================
-
         elif filename.endswith(
             (".mp4", ".avi", ".mov", ".mkv")
         ):
@@ -591,13 +502,9 @@ def home():
             video_analysis["video_filename"] = saved_filename
 
             result = video_analysis["result"]
-
             confidence = video_analysis["confidence"]
 
-            # ============================================
-            # OPTIONAL AUDIO ANALYSIS
-            # ============================================
-
+            # AUDIO ANALYSIS
             try:
 
                 audio_analysis = analyze_video_audio(file_path)
@@ -608,7 +515,10 @@ def home():
 
             except Exception as audio_error:
 
-                print("AUDIO ANALYSIS ERROR:", repr(audio_error))
+                print(
+                    "AUDIO ANALYSIS ERROR:",
+                    repr(audio_error)
+                )
 
                 video_analysis["audio_analysis"] = None
 
@@ -631,10 +541,6 @@ def home():
                 len(video_analysis["suspicious_timeline"])
             )
 
-        # ================================================
-        # UNSUPPORTED FILE
-        # ================================================
-
         else:
 
             return render_template(
@@ -656,11 +562,6 @@ def home():
             "index.html",
             error=f"An error occurred while analyzing the file: {error}"
         )
-
-    # -----------------------------------------------------
-    # IMPORTANT: RENDER RESULTS DIRECTLY
-    # No temporary result dictionary or redirect required.
-    # -----------------------------------------------------
 
     return render_template(
         "results.html",
