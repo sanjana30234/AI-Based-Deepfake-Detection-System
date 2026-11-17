@@ -136,7 +136,7 @@ def analyze_video(file_path):
 
     clear_video_output_folders()
 
-    number_of_samples = min(30, total_frames)
+    number_of_samples = min(8, total_frames)
 
     frame_indices = np.linspace(
         0,
